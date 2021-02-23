@@ -9,8 +9,7 @@
  * Allocate and initialize an element with given string and
  * next element.
  * Return NULL if the string was NULL or an allocation failed.
- * Return a pointer to a initialized element is returned if
- * success.
+ * Return a pointer to a initialized element if success.
  */
 static list_ele_t *new_element(char *s, list_ele_t *next)
 {
@@ -172,7 +171,101 @@ void q_reverse(queue_t *q)
     now->next = pre;
     q->tail = q->head;
     q->head = now;
+
 }
+
+/*
+ * String compare function.
+ */
+static int cmp_elem(list_ele_t *a, list_ele_t *b)
+{
+    return strcmp(a->value, b->value);
+}
+
+/*
+ * Continuous range
+ */
+typedef struct {
+    list_ele_t *head;
+    list_ele_t *tail;
+} range_t;
+
+static void split(range_t *r, range_t *r1, range_t *r2)
+{
+    list_ele_t *head = r->head;
+    list_ele_t *tail = r->tail;
+
+    if (head == tail) {
+        r1->head = head;
+        r1->tail = tail;
+        r2->head = NULL;
+        return;
+    }
+
+    list_ele_t *a = head->next;
+    list_ele_t *b = head;
+
+    while (a) {
+        if (a->next) {
+            a = a->next->next;
+            b = b->next;
+        } else
+            break;
+    }
+
+    r1->head = head;
+    r1->tail = b;
+    r2->head = b->next;
+    r2->tail = tail;
+    r1->tail->next = r2->tail->next = NULL;
+}
+
+static void merge(range_t *r1, range_t *r2, range_t *rr)
+{
+    list_ele_t lead = {.value = NULL, .next = NULL};
+    list_ele_t *tail = &lead;
+    list_ele_t *h1 = r1->head;
+    list_ele_t *h2 = r2->head;
+    while (h1 && h2) {
+        list_ele_t **source = (cmp_elem(h1, h2) < 0) ? (&h1) : (&h2);
+        tail->next = (*source);
+        tail = tail->next;
+        (*source) = (*source)->next;
+    }
+    if (!h1) {
+        tail->next = h2;
+        rr->tail = r2->tail;
+    } else {
+        tail->next = h1;
+        rr->tail = r1->tail;
+    }
+    rr->head = lead.next;
+}
+
+static void merge_sort(range_t *r)
+{
+    {
+        list_ele_t *head = r->head;
+        list_ele_t *tail = r->tail;
+        if (head == tail) {
+            return;
+        } else if (head->next == tail) {
+            if (cmp_elem(tail, head) < 0) {
+                char *tmp = head->value;
+                head->value = tail->value;
+                tail->value = tmp;
+            }
+            return;
+        }
+    }
+    range_t r1 = {.head = r->head, .tail = NULL};
+    range_t r2 = {.head = NULL, .tail = r->tail};
+    split(r, &r1, &r2);
+    merge_sort(&r1);
+    merge_sort(&r2);
+    merge(&r1, &r2, r);
+}
+
 
 /*
  * Sort elements of queue in ascending order
@@ -181,6 +274,10 @@ void q_reverse(queue_t *q)
  */
 void q_sort(queue_t *q)
 {
-    /* TODO: You need to write the code for this function */
-    /* TODO: Remove the above comment when you are about to implement. */
+    if (q_size(q) <= 1)
+        return;
+    range_t range = {.head = q->head, .tail = q->tail};
+    merge_sort(&range);
+    q->head = range.head;
+    q->tail = range.tail;
 }
