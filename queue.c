@@ -6,6 +6,47 @@
 #include "queue.h"
 
 /*
+ * Allocate and initialize an element with given string and
+ * next element.
+ * Return NULL if the string was NULL or an allocation failed.
+ * Return a pointer to a initialized element is returned if
+ * success.
+ */
+static list_ele_t *new_element(char *s, list_ele_t *next)
+{
+    if (!s)
+        return NULL;
+    list_ele_t *new_ele = malloc(sizeof(list_ele_t));
+    if (!new_ele)
+        return NULL;
+    size_t len = strlen(s);
+    new_ele->value = malloc((len + 1) * sizeof(char));
+    if (!new_ele->value) {
+        free(new_ele);
+        return NULL;
+    }
+    new_ele->next = next;
+    strncpy(new_ele->value, s, len);
+    new_ele->value[len] = 0;
+    return new_ele;
+}
+
+/*
+ * Deallocate a pointer to a list element.
+ * Assume the input is not NULL.
+ * Return the next element
+ */
+static list_ele_t *del_element(list_ele_t *e)
+{
+    if (e->value)
+        free(e->value);
+    list_ele_t *next = e->next;
+    free(e);
+    return next;
+}
+
+
+/*
  * Create empty queue.
  * Return NULL if could not allocate space.
  */
@@ -36,13 +77,13 @@ void q_free(queue_t *q)
  */
 bool q_insert_head(queue_t *q, char *s)
 {
-    list_ele_t *newh;
-    /* TODO: What should you do if the q is NULL? */
-    newh = malloc(sizeof(list_ele_t));
-    /* Don't forget to allocate space for the string and copy it */
-    /* What if either call to malloc returns NULL? */
-    newh->next = q->head;
+    if (!q)
+        return false;
+    list_ele_t *newh = new_element(s, q->head);
+    if (!newh)
+        return false;
     q->head = newh;
+    q->size++;
     return true;
 }
 
@@ -71,9 +112,18 @@ bool q_insert_tail(queue_t *q, char *s)
  */
 bool q_remove_head(queue_t *q, char *sp, size_t bufsize)
 {
-    /* TODO: You need to fix up this code. */
-    /* TODO: Remove the above comment when you are about to implement. */
-    q->head = q->head->next;
+    if (!q || 0 == q->size)
+        return false;
+    list_ele_t *head = q->head;
+    if (sp) {
+        sp[0] = 0;
+        if (head->value) {
+            strncpy(sp, head->value, bufsize - 1);
+            sp[bufsize - 1] = 0;
+        }
+    }
+    q->head = del_element(head);
+    q->size--;
     return true;
 }
 
