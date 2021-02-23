@@ -26,7 +26,7 @@ typedef struct ELE {
 typedef struct {
     size_t size;
     list_ele_t *head; /* Linked list of elements */
-
+    list_ele_t *tail;
 } queue_t;
 
 /* Operations on queue */
