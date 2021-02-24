@@ -191,7 +191,8 @@ typedef struct {
 
 /*
  * Split a non-empty closed-ranged linked list in half.
- * Output via changing the content of r1 and r2
+ * Output via changing the content of r1 and r2, both of them would
+ * be NULL terminating.
  */
 static void split(const range_t *r, range_t *r1, range_t *r2)
 {
@@ -200,6 +201,9 @@ static void split(const range_t *r, range_t *r1, range_t *r2)
         r2->tail = r2->head = NULL;
         return;
     }
+    /* Use fast `probe`, which moves twice as fast as the cut point,
+     * to place `cut` at the middle of the linked list
+     */
     list_ele_t *cut = r->head;
     for (list_ele_t *probe = r->head->next; probe && probe->next;) {
         probe = probe->next->next;
@@ -209,6 +213,9 @@ static void split(const range_t *r, range_t *r1, range_t *r2)
     r1->tail = cut;
     r2->head = cut->next;
     r2->tail = r->tail;
+    /*  NULL terminating the linked lists to make sure we don't
+     *  accidently access elements that are not in the range.
+     */
     r1->tail->next = r2->tail->next = NULL;
 }
 
@@ -218,10 +225,14 @@ static void split(const range_t *r, range_t *r1, range_t *r2)
  */
 static void merge(const range_t *r1, const range_t *r2, range_t *rr)
 {
+    /* A dummy element followed by the "merged" linked list */
     list_ele_t lead = {.value = NULL, .next = NULL};
     list_ele_t *tail = &lead;
     list_ele_t *h1 = r1->head;
     list_ele_t *h2 = r2->head;
+    /* When one of the range is used up, just concatenate the merged
+     * linked list with the other one to save time.
+     */
     while (h1 && h2) {
         list_ele_t **source = (cmp_elem(h1, h2) < 0) ? (&h1) : (&h2);
         tail->next = (*source);
@@ -239,24 +250,25 @@ static void merge(const range_t *r1, const range_t *r2, range_t *rr)
 }
 
 /*
- * User merge sort to sort a linked list in a closed range.
+ * User merge sort to sort a NULL terminating linked list.
  */
 static void merge_sort(range_t *r)
 {
-    {
-        list_ele_t *head = r->head;
-        list_ele_t *tail = r->tail;
-        if (head == tail) {
-            return;
-        } else if (head->next == tail) {
-            if (cmp_elem(tail, head) < 0) {
-                tail->next = head;
-                head->next = NULL;
-                r->head = tail;
-                r->tail = head;
-            }
-            return;
+    list_ele_t *head = r->head;
+    list_ele_t *tail = r->tail;
+    /* Handle edge cases (length-1 and length-2) here, so no
+     * check is needed at recursive callings.
+     */
+    if (head == tail) {
+        return;
+    } else if (head->next == tail) {
+        if (cmp_elem(tail, head) < 0) {
+            tail->next = head;
+            head->next = NULL;
+            r->head = tail;
+            r->tail = head;
         }
+        return;
     }
     range_t r1 = {.head = NULL, .tail = NULL};
     range_t r2 = {.head = NULL, .tail = NULL};
