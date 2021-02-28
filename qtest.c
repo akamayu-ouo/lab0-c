@@ -762,11 +762,13 @@ int main(int argc, char *argv[])
     init_cmd();
     console_init();
 
-    /* Trigger call back function(auto completion) */
-    linenoiseSetCompletionCallback(completion);
+    if (!infile_name) {
+        /* Trigger call back function(auto completion) */
+        linenoiseSetCompletionCallback(completion);
+        linenoiseHistorySetMaxLen(HISTORY_LEN);
+        linenoiseHistoryLoad(HISTORY_FILE); /* Load the history at startup */
+    }
 
-    linenoiseHistorySetMaxLen(HISTORY_LEN);
-    linenoiseHistoryLoad(HISTORY_FILE); /* Load the history at startup */
     set_verblevel(level);
     if (level > 1) {
         set_echo(true);
@@ -777,6 +779,7 @@ int main(int argc, char *argv[])
     add_quit_helper(queue_quit);
 
     bool ok = true;
+
     ok = ok && run_console(infile_name);
     ok = ok && finish_cmd();
 
