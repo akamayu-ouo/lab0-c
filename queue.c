@@ -73,10 +73,8 @@ void q_free(queue_t *q)
  */
 bool q_insert_head(queue_t *q, char *s)
 {
-    if (!q)
-        return false;
-    list_ele_t *newh = new_element(s, q->head);
-    if (!newh)
+    list_ele_t *newh = NULL;
+    if (!q || !(newh = new_element(s, q->head)))
         return false;
     if (0 == q->size)
         q->tail = newh;
@@ -98,10 +96,8 @@ bool q_insert_tail(queue_t *q, char *s)
         return false;
     if (0 == q->size)
         return q_insert_head(q, s);
-    list_ele_t *newt = new_element(s, NULL);
-    if (!newt)
+    if (!(q->tail->next = new_element(s, NULL)))
         return false;
-    q->tail->next = newt;
     q->tail = q->tail->next;
     q->size++;
     return true;
@@ -119,7 +115,7 @@ bool q_remove_head(queue_t *q, char *sp, size_t bufsize)
 {
     if (0 == q_size(q))
         return false;
-    if (sp && q->head->value) {
+    if (sp) {
         strncpy(sp, q->head->value, bufsize - 1);
         sp[bufsize - 1] = '\0';
     }
