@@ -11,22 +11,16 @@
  * Return NULL if the string was NULL or an allocation failed.
  * Return a pointer to a initialized element if success.
  */
-static list_ele_t *new_element(char *s, list_ele_t *next)
+inline static list_ele_t *new_element(char *s, list_ele_t *next)
 {
-    if (!s)
+    list_ele_t *new_ele = NULL;
+    if (!s || !(new_ele = malloc(sizeof(list_ele_t))))
         return NULL;
-    list_ele_t *new_ele = malloc(sizeof(list_ele_t));
-    if (!new_ele)
-        return NULL;
-    size_t len = strlen(s);
-    new_ele->value = malloc((len + 1) * sizeof(char));
-    if (!new_ele->value) {
+    if (!(new_ele->value = strdup(s))) {
         free(new_ele);
         return NULL;
     }
     new_ele->next = next;
-    strncpy(new_ele->value, s, len);
-    new_ele->value[len] = 0;
     return new_ele;
 }
 
@@ -35,7 +29,7 @@ static list_ele_t *new_element(char *s, list_ele_t *next)
  * Assume the input is not NULL.
  * Return the next element
  */
-static list_ele_t *del_element(list_ele_t *e)
+inline static list_ele_t *del_element(list_ele_t *e)
 {
     if (e->value)
         free(e->value);
@@ -64,9 +58,8 @@ queue_t *q_new()
 void q_free(queue_t *q)
 {
     if (q) {
-        while (q->head) {
+        while (q->head)
             q->head = del_element(q->head);
-        }
         free(q);
     }
 }
