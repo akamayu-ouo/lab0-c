@@ -163,7 +163,7 @@ void q_reverse(queue_t *q)
 /*
  * List element compare function.
  */
-static int cmp_elem(const list_ele_t *a, const list_ele_t *b)
+inline static int cmp_elem(const list_ele_t *const a, const list_ele_t *const b)
 {
     return strcmp(a->value, b->value);
 }
@@ -177,92 +177,47 @@ typedef struct {
 } range_t;
 
 /*
- * Split a non-empty closed-ranged linked list in half.
- * Output via changing the content of r1 and r2, both of them would
- * be NULL terminating.
+ * Find the middle "slit" of a linked list
  */
-static void split(const range_t *r, range_t *r1, range_t *r2)
+inline static range_t split(list_ele_t *const head, list_ele_t *const tail)
 {
-    if (r->head == r->tail) {
-        *r1 = *r;
-        r2->tail = r2->head = NULL;
-        return;
+    list_ele_t *slow = head;
+    for (list_ele_t *fast = head->next; fast != tail && fast != tail->next;) {
+        fast = fast->next->next;
+        slow = slow->next;
     }
-    /* Use fast `probe`, which moves twice as fast as the cut point,
-     * to place `cut` at the middle of the linked list
-     */
-    list_ele_t *cut = r->head;
-    for (list_ele_t *probe = r->head->next; probe && probe->next;) {
-        probe = probe->next->next;
-        cut = cut->next;
-    }
-    r1->head = r->head;
-    r1->tail = cut;
-    r2->head = cut->next;
-    r2->tail = r->tail;
-    /*  NULL terminating the linked lists to make sure we don't
-     *  accidently access elements that are not in the range.
-     */
-    r1->tail->next = r2->tail->next = NULL;
+    return (range_t){.head = slow, .tail = slow->next};
 }
 
 /*
  * Merge two closed-ranged linked lists, r1 and r2.
- * Output via changing the content of rr
+ * Output the merged range
  */
-static void merge(const range_t *r1, const range_t *r2, range_t *rr)
+inline static range_t merge(range_t r1, range_t r2)
 {
-    /* A dummy element followed by the "merged" linked list */
-    list_ele_t lead = {.value = NULL, .next = NULL};
-    list_ele_t *tail = &lead;
-    list_ele_t *h1 = r1->head;
-    list_ele_t *h2 = r2->head;
-    /* When one of the range is used up, just concatenate the merged
-     * linked list with the other one to save time.
-     */
-    while (h1 && h2) {
-        list_ele_t **source = (cmp_elem(h1, h2) < 0) ? (&h1) : (&h2);
-        tail->next = (*source);
-        tail = tail->next;
-        (*source) = (*source)->next;
+    list_ele_t *merged = NULL, **tail = NULL;
+    for (tail = &merged; r1.head && r2.head; tail = &((*tail)->next)) {
+        list_ele_t **source =
+            (cmp_elem(r1.head, r2.head) < 0) ? (&r1.head) : (&r2.head);
+        *tail = *source;
+        *source = (*source)->next;
     }
-    if (!h1) {
-        tail->next = h2;
-        rr->tail = r2->tail;
-    } else {
-        tail->next = h1;
-        rr->tail = r1->tail;
-    }
-    rr->head = lead.next;
+    range_t *result = r1.head ? &r1 : &r2;
+    *tail = result->head;
+    result->head = merged;
+    return *result;
 }
 
 /*
- * User merge sort to sort a NULL terminating linked list.
+ * Use merge sort to sort the linked list.
  */
-static void merge_sort(range_t *r)
+static range_t merge_sort(list_ele_t *head, list_ele_t *tail)
 {
-    list_ele_t *head = r->head;
-    list_ele_t *tail = r->tail;
-    /* Handle edge cases (length-1 and length-2) here, so no
-     * check is needed at recursive callings.
-     */
-    if (head == tail) {
-        return;
-    } else if (head->next == tail) {
-        if (cmp_elem(tail, head) < 0) {
-            tail->next = head;
-            head->next = NULL;
-            r->head = tail;
-            r->tail = head;
-        }
-        return;
-    }
-    range_t r1 = {.head = NULL, .tail = NULL};
-    range_t r2 = {.head = NULL, .tail = NULL};
-    split(r, &r1, &r2);
-    merge_sort(&r1);
-    merge_sort(&r2);
-    merge(&r1, &r2, r);
+    if (head == tail)
+        return (range_t){.head = head, .tail = tail};
+    range_t slit = split(head, tail);
+    slit.head->next = tail->next = NULL;
+    return merge(merge_sort(head, slit.head), merge_sort(slit.tail, tail));
 }
 
 /*
@@ -274,8 +229,7 @@ void q_sort(queue_t *q)
 {
     if (q_size(q) <= 1)
         return;
-    range_t range = {.head = q->head, .tail = q->tail};
-    merge_sort(&range);
+    range_t range = merge_sort(q->head, q->tail);
     q->head = range.head;
     q->tail = range.tail;
 }
