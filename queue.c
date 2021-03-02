@@ -14,9 +14,8 @@
 inline static list_ele_t *new_element(char *s, list_ele_t *next)
 {
     list_ele_t *new_ele = NULL;
-    if (!s || !(new_ele = malloc(sizeof(list_ele_t))))
-        return NULL;
-    if (!(new_ele->value = strdup(s))) {
+    if (!s || !(new_ele = malloc(sizeof(list_ele_t))) ||
+        !(new_ele->value = strdup(s))) {
         free(new_ele);
         return NULL;
     }
@@ -31,13 +30,11 @@ inline static list_ele_t *new_element(char *s, list_ele_t *next)
  */
 inline static list_ele_t *del_element(list_ele_t *e)
 {
-    if (e->value)
-        free(e->value);
     list_ele_t *next = e->next;
+    free(e->value);
     free(e);
     return next;
 }
-
 
 /*
  * Create empty queue.
