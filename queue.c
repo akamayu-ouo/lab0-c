@@ -45,7 +45,7 @@ queue_t *q_new()
     queue_t *q = malloc(sizeof(queue_t));
     if (q) {
         q->head = NULL;
-        q->tail = NULL;
+        q->tail = &q->head;
         q->size = 0;
     }
     return q;
@@ -62,6 +62,22 @@ void q_free(queue_t *q)
 }
 
 /*
+ * Attemp to insert element at *link
+ */
+inline static bool insert_at(queue_t *q, list_ele_t **link, char *s)
+{
+    list_ele_t *orig = *link;
+    if (!(*link = new_element(s, orig))) {
+        *link = orig;
+        return false;
+    }
+    ++q->size;
+    if (*q->tail)
+        q->tail = &(*q->tail)->next;
+    return true;
+}
+
+/*
  * Attempt to insert element at head of queue.
  * Return true if successful.
  * Return false if q is NULL or could not allocate space.
@@ -70,14 +86,7 @@ void q_free(queue_t *q)
  */
 bool q_insert_head(queue_t *q, char *s)
 {
-    list_ele_t *newh = NULL;
-    if (!q || !(newh = new_element(s, q->head)))
-        return false;
-    if (0 == q->size)
-        q->tail = newh;
-    q->head = newh;
-    q->size++;
-    return true;
+    return q && insert_at(q, &q->head, s);
 }
 
 /*
@@ -89,15 +98,7 @@ bool q_insert_head(queue_t *q, char *s)
  */
 bool q_insert_tail(queue_t *q, char *s)
 {
-    if (!q)
-        return false;
-    if (0 == q->size)
-        return q_insert_head(q, s);
-    if (!(q->tail->next = new_element(s, NULL)))
-        return false;
-    q->tail = q->tail->next;
-    q->size++;
-    return true;
+    return q && insert_at(q, q->tail, s);
 }
 
 /*
@@ -117,9 +118,8 @@ bool q_remove_head(queue_t *q, char *sp, size_t bufsize)
         sp[bufsize - 1] = '\0';
     }
     q->head = del_element(q->head);
-    q->size--;
-    if (1 >= q->size)
-        q->tail = q->head;
+    if (--q->size <= 1)
+        q->tail = (q->head) ? &q->head->next : &q->head;
     return true;
 }
 
@@ -153,7 +153,7 @@ void q_reverse(queue_t *q)
         nxt = nxt->next;
     }
     now->next = pre;
-    q->tail = q->head;
+    q->tail = &q->head->next;
     q->head = now;
 }
 
@@ -170,20 +170,30 @@ inline static int cmp_elem(const list_ele_t *const a, const list_ele_t *const b)
  */
 typedef struct {
     list_ele_t *head;
-    list_ele_t *tail;
+    list_ele_t **tail;
 } range_t;
+
+/*
+ * Check if head just (about to) pass tail
+ */
+inline static bool too_close(list_ele_t *const head,
+                             list_ele_t *const *const tail)
+{
+    return head == *tail || &head->next == tail;
+}
 
 /*
  * Find the middle "slit" of a linked list
  */
-inline static range_t split(list_ele_t *const head, list_ele_t *const tail)
+inline static range_t split(list_ele_t *const head,
+                            list_ele_t *const *const tail)
 {
     list_ele_t *slow = head;
-    for (list_ele_t *fast = head->next; fast != tail && fast != tail->next;) {
+    for (list_ele_t *fast = head->next; !too_close(fast, tail);) {
         fast = fast->next->next;
         slow = slow->next;
     }
-    return (range_t){.head = slow, .tail = slow->next};
+    return (range_t){.head = slow->next, .tail = &slow->next};
 }
 
 /*
@@ -208,13 +218,13 @@ inline static range_t merge(range_t r1, range_t r2)
 /*
  * Use merge sort to sort the linked list.
  */
-static range_t merge_sort(list_ele_t *head, list_ele_t *tail)
+static range_t merge_sort(list_ele_t *head, list_ele_t **tail)
 {
-    if (head == tail)
+    if (too_close(head, tail))
         return (range_t){.head = head, .tail = tail};
     range_t slit = split(head, tail);
-    slit.head->next = tail->next = NULL;
-    return merge(merge_sort(head, slit.head), merge_sort(slit.tail, tail));
+    *slit.tail = *tail = NULL;
+    return merge(merge_sort(head, slit.tail), merge_sort(slit.head, tail));
 }
 
 /*
